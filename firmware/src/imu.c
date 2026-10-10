@@ -1,9 +1,9 @@
 /* Copyright (c) 2026 Eoin Jordan
  * SPDX-License-Identifier: Apache-2.0
  *
- * TDK IMU on the Pico4ML's I2C0 (GP4 SDA, GP5 SCL). Arducam fitted an
- * ICM-20948 on some boards and an ICM-42622 on others, both at 0x68, so probe
- * for either and speak the matching register map.
+ * TDK IMU on the Pico4ML's I2C0 (GP4 SDA, GP5 SCL), address 0x68. The
+ * product pages say ICM-20948; the board on my desk answers as an ICM-42602
+ * (WHO_AM_I 0x41), so probe for both families and speak the matching map.
  */
 #include "imu.h"
 
@@ -52,7 +52,10 @@ int imu_init(void)
 		uint8_t who75 = 0xFF, who00 = 0xFF;
 		addr = addrs[i];
 		int r75 = rd(ICM4262X_WHO_AM_I, &who75);
-		if (r75 == 0 && (who75 == 0x46 || who75 == 0x42 || who75 == 0x47 || who75 == 0x67)) {
+		/* 0x41 ICM-42602 (what this Pico4ML-BLE has), 0x42 ICM-42605, 0x46 ICM-42622,
+		 * 0x47 ICM-42688, 0x67 ICM-42670 */
+		if (r75 == 0 && (who75 == 0x41 || who75 == 0x42 || who75 == 0x46 || who75 == 0x47 ||
+				 who75 == 0x67)) {
 			part = PART_ICM4262X;
 			printk("imu: ICM-4262x family (WHO_AM_I 0x%02x) at 0x%02x\n", who75, addr);
 			break;

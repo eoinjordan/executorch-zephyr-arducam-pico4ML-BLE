@@ -25,7 +25,7 @@ confidence on the 0.96" ST7735, with the IMU tilt underneath.
 | Firmware | `firmware/` | Zephyr app for `rpi_pico` with a Pico4ML overlay |
 | Camera | `firmware/src/camera.c` | HM01B0 1-bit serial capture with PIO + DMA, after Arducam's RPI-Pico-Cam |
 | Screen | `firmware/src/screen.c` | ST7735S 80x160 through Zephyr's display API + MIPI-DBI, 6x8 font |
-| IMU | `firmware/src/imu.c` | ICM-20948 accel + gyro, raw I2C (no Zephyr driver for it in 4.4) |
+| IMU | `firmware/src/imu.c` | ICM-42602 (or ICM-20948) accel + gyro over raw I2C; Zephyr 4.4 has no driver for either |
 | Flash | `firmware/scripts/flash_pico4ml.py` | 1200-baud reboot into BOOTSEL, then copies the UF2 |
 | CI | `.github/workflows/build.yml` | builds the firmware for `rpi_pico` |
 
@@ -37,7 +37,7 @@ confidence on the 0.96" ST7735, with the IMU tilt underneath.
 | HM01B0 control | GP2 RESET, GP3 XCLK (12.5 MHz), GP16 VSYNC | GPIO, PWM slice 1B |
 | HM01B0 data | GP6 D0, GP14 PCLK, GP15 HSYNC | `pio0` state machine + DMA |
 | ST7735S | GP10 SCK, GP11 MOSI, GP13 CS, GP9 DC, GP7 RST | `spi1` + `zephyr,mipi-dbi-spi` |
-| ICM-20948 | GP4/GP5 (shared) | `i2c0`, address 0x68 |
+| IMU (ICM-42602 here, ICM-20948 per the datasheet) | GP4/GP5 (shared) | `i2c0`, address 0x68 |
 | Microphone | GP26 DATA, GP27 LRCLK, GP28 BCLK | PIO I2S capture, not wired up yet |
 | Console | USB | CDC ACM |
 
@@ -65,22 +65,36 @@ both the stock Arducam firmware and this one treat as "reboot into BOOTSEL", wai
 https://download.pytorch.org/whl/cpu`, put 7-Zip on `PATH`, and pass
 `-- -DFLATC_EXECUTABLE=<venv>/Scripts/flatc.exe` to `west build`.
 
-Then open the USB serial port (any baud except 1200) and you should see:
+Then open the USB serial port (any baud except 1200). This is the board on my desk:
 
 ```
-ExecuTorch on rpi_pico (Zephyr 4.4.0)
+ExecuTorch on rpi_pico/rp2040 (Zephyr 4.4.0)
+model: 62888 bytes in flash, method pool 65536 B, temp pool 8192 B
+screen: 80x160, pixel format 0x20
+I [executorch:main.cpp:118 init()] planned buffer 0: 52928 bytes
+I [executorch:main.cpp:148 init()] method 'forward' loaded; input numel 784; pool used 59584 / 65536 bytes
+
 self-test: MNIST test image, label 7
-  predicted 7 (99%), expected 7, max|rp2040-pytorch|=...e-06, ... us
+  predicted 7 (100%), expected 7, max|rp2040-pytorch|=3.3e-06, 766274 us
 SELF-TEST PASS
-screen: 80x160, pixel format 0x...
-imu: ICM-20948 ready (accel +-2 g, gyro +-250 dps)
+imu: ICM-4262x family (WHO_AM_I 0x41) at 0x68
+imu: ready (accel +-16 g, gyro +-2000 dps)
 camera: HM01B0 ready, 162x122, PIO sm 0, DMA ch 0
-{"seq":0,"digit":7,"p":97,"infer_us":...,"imu":"g+0.0-0.1+1.0"}
+{"seq":0,"digit":0,"p":32,"infer_us":756771,"raw":[19,28,22],"imu":"g+0.6-0.8+0.2"}
 ```
 
-Every tenth frame the console also prints the 28x28 crop as ASCII, which is the quickest way
-to check framing and exposure without looking at the LCD. Write a digit with a thick pen on
-white paper and hold it about 10 cm from the lens.
+![console](docs/images/console.png)
+
+`raw` is the min, max and mean of the frame before any processing: if the max stays below
+about 50 the lens is covered or the room is dark, whatever the model says. Every tenth frame
+the console also prints the 28x28 crop as ASCII, the quickest way to check framing without
+looking at the LCD. Write a digit with a thick pen on white paper and hold it about 10 cm from
+the lens under decent light.
+
+Two things worth knowing from the first run: the inference takes about 760 ms, because a
+Cortex-M0+ does fp32 in software (the same model runs in a few ms on the ESP32-S3), and the
+IMU on this board answers as an ICM-42602 (WHO_AM_I 0x41), not the ICM-20948 the product
+pages list, so `imu.c` probes for both families.
 
 ## Verify
 

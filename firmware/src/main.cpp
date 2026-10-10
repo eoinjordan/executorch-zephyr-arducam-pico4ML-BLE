@@ -219,14 +219,16 @@ void ascii_preview(const uint8_t *gray)
 }
 
 #ifdef CONFIG_APP_CAMERA
-/* Centre square of the frame, box-averaged to 28x28, inverted (a dark digit
- * on light paper becomes white-on-black like MNIST), then normalised. */
+/* Centre square of the frame, box-averaged to 28x28, contrast-stretched so
+ * paper is 0 and the darkest ink is 255 after inversion (MNIST is white
+ * strokes on black), then normalised. */
 void frame_to_input(const uint8_t *frame, uint8_t *gray, float *input)
 {
 	const int side = CAM_H < CAM_W ? CAM_H : CAM_W;
 	const int box = side / kSide;
 	const int x0 = (CAM_W - box * kSide) / 2;
 	const int y0 = (CAM_H - box * kSide) / 2;
+	unsigned lo = 255, hi = 0;
 	for (int y = 0; y < kSide; ++y) {
 		for (int x = 0; x < kSide; ++x) {
 			unsigned sum = 0;
@@ -236,10 +238,19 @@ void frame_to_input(const uint8_t *frame, uint8_t *gray, float *input)
 					sum += row[bx];
 				}
 			}
-			uint8_t v = (uint8_t)(255 - sum / (box * box));
-			gray[y * kSide + x] = v;
-			input[y * kSide + x] = (v / 255.f - kMean) / kStd;
+			unsigned v = sum / (box * box);
+			gray[y * kSide + x] = (uint8_t)v;
+			lo = v < lo ? v : lo;
+			hi = v > hi ? v : hi;
 		}
+	}
+	/* Stretch, invert, and push the paper to black with a mild threshold. */
+	const unsigned range = hi > lo + 16 ? hi - lo : 16;
+	for (int i = 0; i < kSide * kSide; ++i) {
+		int v = 255 - (int)((gray[i] - lo) * 255u / range);
+		v = v < 64 ? 0 : v; /* light paper noise -> background */
+		gray[i] = (uint8_t)v;
+		input[i] = (v / 255.f - kMean) / kStd;
 	}
 }
 #endif

@@ -33,13 +33,13 @@ config APP_CAM_BINNING
 
 config APP_CAM_BIT_REVERSE
 	bool "Reverse the bit order of each captured byte"
-	default y
+	default n
 	depends on APP_CAMERA
 	help
-	  The HM01B0 sends the low bit of each pixel first on its 1-bit serial
-	  output while the PIO program shifts bits in MSB-first. Without this a
-	  white sheet of paper reads as ~15 instead of ~240. Turn off if the
-	  raw frame mean in the JSON looks inverted for your sensor revision.
+	  The HM01B0 on the Pico4ML sends each pixel MSB first, which matches
+	  the PIO program, so this stays off. If the ASCII preview on the
+	  console looks like random noise while "raw" spans the full range,
+	  your sensor revision sends LSB first: turn this on.
 
 config APP_CAMERA_INTERVAL_MS
 	int "Delay between camera inferences (ms)"

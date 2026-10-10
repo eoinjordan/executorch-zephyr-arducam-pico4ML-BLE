@@ -211,8 +211,7 @@ const uint8_t *camera_capture(void)
 	pio_sm_set_enabled(pio, sm, false);
 
 #ifdef CONFIG_APP_CAM_BIT_REVERSE
-	/* The PIO shifts left (first bit in = MSB) but the sensor sends the
-	 * low bit first on its 1-bit interface, so flip each byte. */
+	/* For sensor revisions that send the low bit first (not this one). */
 	static uint8_t rev[256];
 	if (rev[1] == 0) {
 		for (unsigned v = 0; v < 256; v++) {

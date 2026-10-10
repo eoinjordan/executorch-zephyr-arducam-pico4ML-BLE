@@ -94,7 +94,12 @@ camera: HM01B0 ready, 162x122, PIO sm 0, DMA ch 0
 about 50 the lens is covered or the room is dark, whatever the model says. Every tenth frame
 the console also prints the 28x28 crop as ASCII, the quickest way to check framing without
 looking at the LCD. Write a digit with a thick pen on white paper and hold it about 10 cm from
-the lens under decent light.
+the lens under decent light; the crop is contrast-stretched and inverted before it reaches the
+model, so uneven light is fine but the digit has to fill most of the crop.
+
+The HM01B0 here sends each pixel MSB first, which is what the PIO program assumes. If your
+preview looks like random noise while `raw` spans the full range, build with
+`-DCONFIG_APP_CAM_BIT_REVERSE=y`.
 
 Two things worth knowing from the first run: the inference takes about 760 ms, because a
 Cortex-M0+ does fp32 in software (the same model runs in a few ms on the ESP32-S3), and the

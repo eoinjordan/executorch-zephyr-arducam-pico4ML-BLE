@@ -1,0 +1,103 @@
+/* Copyright (c) 2026 Eoin Jordan
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Arducam Pico4ML-BLE on top of Zephyr's rpi_pico board:
+ *   HM01B0 camera   SCCB on I2C0 (GP4 SDA, GP5 SCL) @ 0x24, RESET GP2,
+ *                   XCLK GP3 (PWM 1B), VSYNC GP16, D0 GP6, PCLK GP14, HSYNC GP15
+ *   ST7735S LCD     SPI1 (GP10 SCK, GP11 MOSI), CS GP13, DC GP9, RST GP7, 80x160
+ *   ICM-20948 IMU   I2C0 @ 0x68
+ *   Console         USB CDC ACM
+ */
+
+#include <zephyr/dt-bindings/pwm/pwm.h>
+
+/ {
+	chosen {
+		zephyr,console = &cdc_acm_uart0;
+		zephyr,display = &st7735;
+	};
+
+	zephyr,user {
+		/* HM01B0 XCLK on GP3 = PWM slice 1 channel B = channel index 3 */
+		pwms = <&pwm 3 PWM_NSEC(80) PWM_POLARITY_NORMAL>;
+		cam-reset-gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
+		cam-vsync-gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
+		cam-d0-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
+		cam-pclk-gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
+		cam-hsync-gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
+	};
+
+	mipi_dbi {
+		compatible = "zephyr,mipi-dbi-spi";
+		spi-dev = <&spi1>;
+		dc-gpios = <&gpio0 9 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio0 7 GPIO_ACTIVE_LOW>;
+		write-only;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* 0.96" 80x160 ST7735S: the panel sits at column offset 24 of the
+		 * 132x162 frame memory, BGR order, 16-bit colour. */
+		st7735: st7735@0 {
+			compatible = "sitronix,st7735r";
+			reg = <0>;
+			mipi-max-frequency = <DT_FREQ_M(12)>;
+			mipi-mode = "MIPI_DBI_MODE_SPI_4WIRE";
+			width = <80>;
+			height = <160>;
+			x-offset = <24>;
+			y-offset = <0>;
+			madctl = <0x08>;
+			colmod = <0x05>;
+			caset = [00 00 00 4f];
+			raset = [00 00 00 9f];
+			gamctrp1 = [02 1c 07 12 37 32 29 2d 29 25 2b 39 00 01 03 10];
+			gamctrn1 = [03 1d 07 06 2e 2c 29 2d 2e 2e 37 3f 00 00 02 10];
+		};
+	};
+};
+
+&pinctrl {
+	spi1_lcd: spi1_lcd {
+		group1 {
+			pinmux = <SPI1_SCK_P10>, <SPI1_TX_P11>;
+		};
+	};
+
+	pwm_xclk: pwm_xclk {
+		group1 {
+			pinmux = <PWM_1B_P3>;
+		};
+	};
+};
+
+&spi1 {
+	status = "okay";
+	pinctrl-0 = <&spi1_lcd>;
+	pinctrl-names = "default";
+	clock-frequency = <DT_FREQ_M(12)>;
+	cs-gpios = <&gpio0 13 GPIO_ACTIVE_LOW>;
+};
+
+&pwm {
+	status = "okay";
+	pinctrl-0 = <&pwm_xclk>;
+	pinctrl-names = "default";
+	/* slice 1 runs at the 125 MHz system clock: 10 cycles = 12.5 MHz XCLK */
+	divider-int-1 = <1>;
+};
+
+&i2c0 {
+	status = "okay";
+	clock-frequency = <I2C_BITRATE_STANDARD>;
+};
+
+&pio0 {
+	status = "okay";
+};
+
+&zephyr_udc0 {
+	cdc_acm_uart0: cdc_acm_uart0 {
+		compatible = "zephyr,cdc-acm-uart";
+	};
+};

@@ -1,0 +1,58 @@
+# Copyright (c) 2026 Eoin Jordan
+# SPDX-License-Identifier: Apache-2.0
+
+mainmenu "ExecuTorch digit recognition on the Arducam Pico4ML-BLE"
+
+config EXECUTORCH_METHOD_ALLOCATOR_POOL_SIZE
+	int "ExecuTorch method allocator pool (bytes)"
+	default 65536
+
+config EXECUTORCH_TEMP_ALLOCATOR_POOL_SIZE
+	int "ExecuTorch temp allocator pool (bytes)"
+	default 8192
+
+config APP_CAMERA
+	bool "Classify frames from the HM01B0 camera"
+	default y
+	select PIO_RPI_PICO
+	select PICOSDK_USE_PIO
+	select PICOSDK_USE_DMA
+	select PICOSDK_USE_GPIO
+	select PICOSDK_USE_CLAIM
+	select PWM
+	select I2C
+	help
+	  Capture 162x122 (binned) grayscale frames with PIO + DMA, centre-crop,
+	  downsample to 28x28, invert and normalise like MNIST, run the model
+	  and show the result on the LCD.
+
+config APP_CAM_BINNING
+	bool "2x2 binning (162x122 frames instead of 324x244)"
+	default y
+	depends on APP_CAMERA
+
+config APP_CAMERA_INTERVAL_MS
+	int "Delay between camera inferences (ms)"
+	default 500
+	depends on APP_CAMERA
+
+config APP_SCREEN
+	bool "Draw results on the ST7735 LCD"
+	default y
+	select DISPLAY
+	select MIPI_DBI
+	select SPI
+
+config APP_IMU
+	bool "Read the ICM-20948 and show tilt"
+	default y
+	select I2C
+
+config APP_USB_BOOTSEL_ON_1200_BAUD
+	bool "Reboot into BOOTSEL when the host opens the USB serial port at 1200 baud"
+	default y
+	help
+	  Same convention as the pico-sdk stdio and Arduino cores, so
+	  scripts/flash_pico4ml.py can reflash without touching the button.
+
+source "Kconfig.zephyr"

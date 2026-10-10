@@ -1,0 +1,39 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  firmware:
+    name: Build firmware (rpi_pico, Pico4ML overlay)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: executorch-zephyr-arducam-pico4ML-BLE
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Zephyr host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends git cmake ninja-build gperf ccache \
+            dfu-util device-tree-compiler wget xz-utils file make gcc libsdl2-dev libmagic1
+      - run: pip install -r executorch-zephyr-arducam-pico4ML-BLE/requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+      - name: West workspace
+        run: |
+          west init -l executorch-zephyr-arducam-pico4ML-BLE
+          west update --narrow -o=--depth=1
+          west packages pip --install --ignore-venv-check
+      - run: west sdk install --toolchains arm-zephyr-eabi
+      - run: west build -p always -b rpi_pico executorch-zephyr-arducam-pico4ML-BLE/firmware
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: |
+            build/zephyr/zephyr.uf2
+            build/zephyr/zephyr.elf
+            build/zephyr/zephyr.map

@@ -186,7 +186,9 @@ const uint8_t *camera_capture(void)
 	dma_channel_configure(dma_ch, &c, frame, &pio->rxf[sm], sizeof(frame), false);
 
 	/* Start on the rising edge of VSYNC so the DMA sees a whole frame. */
-	if (!wait_vsync(1) || !wait_vsync(0) || !wait_vsync(1)) {
+	if (!wait_vsync(0) || !wait_vsync(1)) {
+		printk("camera: no VSYNC edge (pin stuck at %d); sensor not streaming\n",
+		       gpio_pin_get_dt(&vsync_pin));
 		return NULL;
 	}
 	pio_sm_clear_fifos(pio, sm);
@@ -198,6 +200,8 @@ const uint8_t *camera_capture(void)
 	int64_t deadline = k_uptime_get() + 1000;
 	while (dma_channel_is_busy(dma_ch)) {
 		if (k_uptime_get() > deadline) {
+			printk("camera: DMA stalled with %u bytes left (PCLK/HSYNC not toggling?)\n",
+			       (unsigned)dma_channel_hw_addr(dma_ch)->transfer_count);
 			dma_channel_abort(dma_ch);
 			pio_sm_set_enabled(pio, sm, false);
 			return NULL;
@@ -205,6 +209,24 @@ const uint8_t *camera_capture(void)
 		k_yield();
 	}
 	pio_sm_set_enabled(pio, sm, false);
+
+#ifdef CONFIG_APP_CAM_BIT_REVERSE
+	/* The PIO shifts left (first bit in = MSB) but the sensor sends the
+	 * low bit first on its 1-bit interface, so flip each byte. */
+	static uint8_t rev[256];
+	if (rev[1] == 0) {
+		for (unsigned v = 0; v < 256; v++) {
+			unsigned r = 0;
+			for (int b = 0; b < 8; b++) {
+				r |= ((v >> b) & 1u) << (7 - b);
+			}
+			rev[v] = (uint8_t)r;
+		}
+	}
+	for (size_t i = 0; i < sizeof(frame); i++) {
+		frame[i] = rev[frame[i]];
+	}
+#endif
 	return frame;
 }
 

@@ -378,7 +378,7 @@ int main(void)
 		if (cam_ok) {
 			const uint8_t *frame = camera_capture();
 			if (frame == nullptr) {
-				printk("camera: no frame (VSYNC/DMA timeout)\n");
+				/* camera_capture() already said why */
 			} else {
 				uint8_t lo, hi, mean;
 				camera_stats(frame, &lo, &hi, &mean);

@@ -31,6 +31,16 @@ config APP_CAM_BINNING
 	default y
 	depends on APP_CAMERA
 
+config APP_CAM_BIT_REVERSE
+	bool "Reverse the bit order of each captured byte"
+	default y
+	depends on APP_CAMERA
+	help
+	  The HM01B0 sends the low bit of each pixel first on its 1-bit serial
+	  output while the PIO program shifts bits in MSB-first. Without this a
+	  white sheet of paper reads as ~15 instead of ~240. Turn off if the
+	  raw frame mean in the JSON looks inverted for your sensor revision.
+
 config APP_CAMERA_INTERVAL_MS
 	int "Delay between camera inferences (ms)"
 	default 500

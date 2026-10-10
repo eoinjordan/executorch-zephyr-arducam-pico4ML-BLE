@@ -16,6 +16,11 @@ confidence on the 0.96" ST7735, with the IMU tilt underneath.
                                                                   USB CDC: JSON + ASCII preview
 ```
 
+![Pico4ML reading hand-written digits](docs/images/demo.gif)
+
+The screen shows the 28x28 crop the model sees, the digit, the confidence bar and the IMU
+tilt; the console prints the same as JSON. Full video frame: [docs/images/board.jpg](docs/images/board.jpg).
+
 ## What is in the repo
 
 | Piece | Where | Notes |

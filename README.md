@@ -9,6 +9,8 @@ Zephyr with the
 points the HM01B0 camera at a hand-written digit, and shows the crop, the digit and the
 confidence on the 0.96" ST7735, with the IMU tilt underneath.
 
+![Arducam Pico4ML-BLE at a glance](docs/images/board.png)
+
 ```
  HM01B0 ──PIO+DMA──▶ 162x122 gray ──crop/box-average──▶ 28x28 ──ExecuTorch──▶ digit, p
                                                            │                      │
